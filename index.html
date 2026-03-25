@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>女性电影选片小助手</title>
+    
+    <!-- 引入字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- 引入 Tailwind CSS 和 Vue 3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#BF417C',
+                        bgMain: '#F8F6F7', // 高级灰白背景，带有一点点暖调
+                        surface: '#FFFFFF',
+                        surfaceLight: '#F0EBEF',
+                        textMain: '#2A2125', // 深灰偏红，作为主文字色
+                        textMuted: '#7D6F75'
+                    },
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'serif'],
+                        sans: ['"Noto Sans SC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #F8F6F7;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(191, 65, 124, 0.03), transparent 30%),
+                radial-gradient(circle at 85% 30%, rgba(191, 65, 124, 0.04), transparent 30%);
+            background-attachment: fixed;
+            color: #2A2125;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F8F6F7; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D9CED3; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #BF417C; 
+        }
+
+        h1, h2, h3, .font-serif {
+            font-family: 'Noto Serif SC', serif;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(191, 65, 124, 0.12);
+            box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.06);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: rgba(191, 65, 124, 0.4);
+            box-shadow: 0 12px 32px -10px rgba(191, 65, 124, 0.18);
+            transform: translateY(-4px);
+        }
+
+        .filter-pill {
+            transition: all 0.3s ease;
+        }
+        .filter-pill.active {
+            background-color: #BF417C;
+            color: white;
+            border-color: #BF417C;
+            box-shadow: 0 4px 12px rgba(191, 65, 124, 0.3);
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .list-enter-active, .list-leave-active {
+            transition: all 0.5s ease;
+        }
+        .list-enter-from, .list-leave-to {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+    </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-brand selection:text-white">
+    <div id="app" class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 flex flex-col md:flex-row gap-8">
+        
+        <!-- 左侧/上方 筛选面板 -->
+        <aside class="w-full md:w-80 flex-shrink-0 md:sticky md:top-12 h-fit">
+            <div class="mb-10 text-center md:text-left">
+                <h1 class="text-4xl font-serif text-brand mb-3 tracking-widest uppercase">女性电影选片</h1>
+                <h2 class="text-xl font-serif text-textMain mb-4 font-bold">你的女性主义电影指南</h2>
+            </div>
+
+            <!-- 新增：模糊搜索框 -->
+            <div class="mb-6 relative">
+                <input 
+                    type="text" 
+                    v-model="searchQuery" 
+                    placeholder="搜索电影名称..." 
+                    class="w-full bg-surface border border-surfaceLight rounded-lg pl-10 pr-10 py-2.5 text-sm text-textMain placeholder-textMuted focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand shadow-sm transition-all"
+                >
+                <svg class="w-4 h-4 text-textMuted absolute left-3.5 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <!-- 一键清空搜索内容按钮 -->
+                <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-textMuted hover:text-brand transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <button @click="isMobileFilterOpen = !isMobileFilterOpen" class="md:hidden w-full mb-6 py-3 border border-brand text-brand bg-white rounded-lg flex justify-center items-center gap-2 font-medium">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                {{ isMobileFilterOpen ? '收起筛选' : '展开多维度筛选' }}
+            </button>
+
+            <div :class="{'hidden': !isMobileFilterOpen, 'md:block': true}" class="space-y-6 pb-20 md:pb-0 h-[65vh] md:h-[calc(100vh-16rem)] overflow-y-auto hide-scrollbar">
+                
+                <div class="flex justify-between items-center pb-2 border-b border-surfaceLight">
+                    <span class="text-sm text-textMuted font-medium">已找到 {{ filteredMovies.length }} 部影片</span>
+                    <button @click="clearFilters" class="text-xs text-brand hover:text-brand/70 font-bold transition-colors">重置条件</button>
+                </div>
+
+                <div v-for="category in filterSchema" :key="category.key" class="space-y-3">
+                    <h3 class="text-sm font-serif text-textMain font-bold tracking-wide">{{ category.label }}</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <button 
+                            v-for="option in category.options" 
+                            :key="option"
+                            @click="toggleFilter(category.key, option)"
+                            class="filter-pill text-xs px-3 py-1.5 rounded-full border border-surfaceLight text-textMuted hover:border-brand/50 hover:text-brand bg-surface font-medium"
+                            :class="{ 'active': activeFilters[category.key].includes(option) }"
+                        >
+                            {{ option }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右侧 电影列表 -->
+        <main class="flex-1">
+            <!-- 暂无数据状态 -->
+            <div v-if="filteredMovies.length === 0" class="h-64 flex flex-col items-center justify-center text-center opacity-60">
+                <svg class="w-12 h-12 text-brand mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                <p class="font-serif text-lg mb-2 text-textMain">在这片维度的宇宙里，暂未寻觅到影像</p>
+                <p class="text-sm text-textMuted">请尝试减少一些筛选条件</p>
+            </div>
+
+            <!-- 电影网格 -->
+            <transition-group name="list" tag="div" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                <div v-for="movie in filteredMovies" :key="movie.title" class="glass-card rounded-xl p-5 flex flex-col h-full group">
+                    <div class="mb-4">
+                        <h3 class="text-xl font-serif text-textMain group-hover:text-brand transition-colors mb-2 font-bold">{{ movie.title }}</h3>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="px-2 py-0.5 bg-brand text-white rounded font-bold shadow-sm">{{ movie.exactRating }} 分</span>
+                            <span class="text-textMuted font-medium">{{ movie.displayRaters }}人评价</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 space-y-2">
+                        <div class="text-sm flex"><span class="w-12 text-textMuted">类型</span> <span class="text-textMain font-medium">{{ movie.genre }}</span></div>
+                        <div class="text-sm flex"><span class="w-12 text-textMuted">时空</span> <span class="text-textMain font-medium">{{ movie.exactCountry }} · {{ movie.exactYear }}年</span></div>
+                        <div class="text-sm flex"><span class="w-12 text-textMuted">时长</span> <span class="text-textMain font-medium">{{ movie.exactDuration }} 分钟</span></div>
+                        <div class="text-sm flex"><span class="w-12 text-textMuted">结局</span> <span class="text-textMain font-medium">{{ movie.ending }}</span></div>
+                        <div class="text-sm flex"><span class="w-12 text-textMuted">风格</span> <span class="text-textMain font-medium">{{ movie.style }} · {{ movie.conflict }}</span></div>
+                    </div>
+                </div>
+            </transition-group>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        // 【算法升级】底层数据使用精确数值：标题|类型|精确国家|精确年份|精确分钟数|评价人数|精确评分|结局|风格|冲突
+        // 算法将自动依据精确数据进行分类筛选
+        const rawMoviesDetailed = [
+            "芭比|喜剧|美国|2023|114|852000|8.1|喜剧/HE|风格化|强冲突",
+            "末路狂花|剧情|美国|1991|130|458000|8.9|悲剧/BE|风格化|强冲突",
+            "燃烧女子的肖像|剧情|法国|2019|122|289000|8.6|开放式|唯美|娓娓道来",
+            "82年生的金智英|剧情|韩国|2019|118|485000|8.6|开放式|写实|强冲突",
+            "送我上青云|剧情|中国大陆|2019|99|236000|7.4|开放式|写实|娓娓道来",
+            "坠落的审判|剧情|法国|2023|151|402000|8.5|开放式|写实|强冲突",
+            "可怜的东西|喜剧|美国|2023|141|358000|8.4|喜剧/HE|风格化|强冲突",
+            "伯德小姐|剧情|美国|2017|94|389000|7.9|开放式|写实|娓娓道来",
+            "小妇人|剧情|美国|2019|135|521000|8.1|喜剧/HE|唯美|娓娓道来",
+            "隐藏人物|传记|美国|2016|127|254000|8.9|喜剧/HE|写实|强冲突",
+            "垫底辣妹|剧情|日本|2015|117|782000|8.3|喜剧/HE|写实|强冲突",
+            "百元之恋|剧情|日本|2014|113|298000|8.4|开放式|写实|强冲突",
+            "成为简·奥斯汀|传记|英国|2007|120|412000|8.3|悲剧/BE|唯美|强冲突",
+            "绝代艳后|传记|美国|2006|123|185000|7.0|悲剧/BE|风格化|强冲突",
+            "嘉年华|剧情|中国大陆|2017|107|385000|8.2|开放式|写实|强冲突",
+            "春潮|剧情|中国大陆|2019|124|112000|7.2|开放式|写实|强冲突",
+            "爱情神话|喜剧|中国大陆|2021|112|658000|8.1|喜剧/HE|唯美|娓娓道来",
+            "阮玲玉|传记|中国香港|1992|126|198000|8.6|悲剧/BE|唯美|强冲突",
+            "黄金时代|传记|中国大陆|2014|179|185000|7.4|悲剧/BE|写实|强冲突",
+            "小姐|惊悚|韩国|2016|144|598000|8.4|喜剧/HE|唯美|强冲突",
+            "母亲|惊悚|韩国|2009|129|215000|8.3|悲剧/BE|黑暗|强冲突",
+            "密阳|剧情|韩国|2007|142|118000|8.0|开放式|写实|强冲突",
+            "让娜·迪尔曼|剧情|比利时|1975|201|45000|8.9|悲剧/BE|风格化|娓娓道来",
+            "克莱奥的5到7|剧情|法国|1962|90|58000|8.5|开放式|风格化|娓娓道来",
+            "秋日奏鸣曲|剧情|瑞典|1978|99|86000|9.0|开放式|写实|强冲突",
+            "钢琴课|剧情|新西兰|1993|121|225000|8.0|喜剧/HE|唯美|强冲突",
+            "简爱|剧情|英国|2011|120|285000|7.6|喜剧/HE|唯美|强冲突",
+            "傲慢与偏见|剧情|英国|2005|129|850000|8.7|喜剧/HE|唯美|娓娓道来",
+            "穿普拉达的女王|喜剧|美国|2006|109|950000|8.1|喜剧/HE|风格化|强冲突",
+            "律政俏佳人|喜剧|美国|2001|96|352000|7.4|喜剧/HE|风格化|强冲突",
+            "贱女孩|喜剧|美国|2004|97|289000|7.0|喜剧/HE|风格化|强冲突",
+            "前程似锦的女孩|惊悚|美国|2020|113|215000|7.7|悲剧/BE|风格化|强冲突",
+            "瞬息全宇宙|科幻|美国|2022|139|758000|7.6|喜剧/HE|风格化|强冲突",
+            "黑天鹅|惊悚|美国|2010|108|812000|8.6|悲剧/BE|黑暗|强冲突",
+            "弗里达|传记|美国|2002|123|195000|8.7|悲剧/BE|风格化|强冲突",
+            "别告诉她|剧情|美国|2019|100|205000|7.3|开放式|写实|娓娓道来",
+            "无依之地|剧情|美国|2020|107|254000|8.1|开放式|写实|娓娓道来",
+            "你好，李焕英|喜剧|中国大陆|2021|128|1380000|7.7|开放式|写实|强冲突",
+            "盲山|剧情|中国大陆|2007|102|548000|8.8|悲剧/BE|写实|强冲突",
+            "找到你|剧情|中国大陆|2018|102|458000|7.4|开放式|写实|强冲突",
+            "亲爱的|剧情|中国大陆|2014|128|580000|8.4|开放式|写实|强冲突",
+            "我的姐姐|剧情|中国大陆|2021|127|620000|6.9|开放式|写实|强冲突",
+            "过春天|剧情|中国大陆|2018|99|235000|7.7|开放式|写实|娓娓道来",
+            "少女哪吒|剧情|中国大陆|2014|98|45000|7.1|开放式|唯美|强冲突",
+            "千与千寻|科幻|日本|2001|125|2250000|9.4|喜剧/HE|唯美|强冲突",
+            "幽灵公主|科幻|日本|1997|134|850000|8.9|开放式|唯美|强冲突",
+            "魔女宅急便|喜剧|日本|1989|103|880000|8.7|喜剧/HE|唯美|娓娓道来",
+            "辉夜姬物语|剧情|日本|2013|137|165000|8.5|悲剧/BE|唯美|娓娓道来",
+            "风之谷|科幻|日本|1984|117|395000|8.9|开放式|风格化|强冲突",
+            "蓝色大门|剧情|中国台湾|2002|85|548000|8.4|开放式|唯美|娓娓道来",
+            "七月与安生|剧情|中国大陆|2016|109|625000|7.6|悲剧/BE|写实|强冲突",
+            "饮食男女|剧情|中国台湾|1994|124|680000|9.2|开放式|写实|娓娓道来",
+            "喜福会|剧情|美国|1993|139|85000|8.4|开放式|写实|强冲突",
+            "紫色|剧情|美国|1985|154|45000|8.4|喜剧/HE|写实|强冲突",
+            "永不妥协|传记|美国|2000|131|185000|8.4|喜剧/HE|写实|强冲突",
+            "妇女参政论者|传记|英国|2015|106|65000|8.3|开放式|写实|强冲突",
+            "性别为本|传记|美国|2018|120|88000|7.8|喜剧/HE|写实|强冲突",
+            "铁娘子|传记|英国|2011|105|125000|7.6|开放式|写实|强冲突",
+            "斯宾塞|传记|英国|2021|111|65000|6.8|开放式|唯美|强冲突",
+            "迷失东京|剧情|美国|2003|102|485000|7.7|开放式|唯美|娓娓道来",
+            "处女之死|剧情|美国|1999|97|75000|7.5|悲剧/BE|唯美|强冲突",
+            "牡丹花下|惊悚|美国|2017|93|58000|5.9|悲剧/BE|唯美|强冲突",
+            "仲夏夜惊魂|惊悚|美国|2019|147|215000|6.9|开放式|唯美|强冲突",
+            "阴风阵阵|惊悚|意大利|1977|98|45000|7.5|开放式|黑暗|强冲突",
+            "钛|惊悚|法国|2021|108|48000|6.4|开放式|风格化|强冲突",
+            "正发生|剧情|法国|2021|100|85000|8.0|开放式|写实|强冲突",
+            "从不很少有时总是|剧情|美国|2020|101|42000|7.6|开放式|写实|娓娓道来",
+            "四月三周两天|剧情|罗马尼亚|2007|113|75000|8.2|悲剧/BE|写实|强冲突",
+            "塔尔|剧情|美国|2022|158|115000|7.9|开放式|写实|强冲突",
+            "女人们的谈话|剧情|美国|2022|104|35000|7.1|开放式|唯美|强冲突",
+            "助理|剧情|美国|2019|87|25000|6.5|开放式|写实|娓娓道来",
+            "过去的人生|剧情|美国|2023|105|198000|7.6|开放式|唯美|娓娓道来",
+            "世界上最糟糕的人|喜剧|挪威|2021|128|165000|7.9|开放式|唯美|娓娓道来",
+            "娇娃们|喜剧|美国|2023|91|18000|6.8|喜剧/HE|风格化|强冲突",
+            "蜂鸟|剧情|韩国|2018|138|95000|8.0|开放式|写实|娓娓道来",
+            "逃跑的女人|剧情|韩国|2020|77|35000|7.3|开放式|写实|娓娓道来",
+            "独自在夜晚的海边|剧情|韩国|2017|101|65000|7.3|开放式|写实|娓娓道来",
+            "诗|剧情|韩国|2010|139|88000|8.6|悲剧/BE|写实|强冲突",
+            "水仙花开|剧情|法国|2007|85|75000|7.3|开放式|唯美|娓娓道来",
+            "假小子|剧情|法国|2011|82|58000|8.2|开放式|写实|娓娓道来",
+            "女孩帮|剧情|法国|2014|113|15000|6.8|开放式|写实|强冲突",
+            "小妈妈|剧情|法国|2021|72|55000|8.1|喜剧/HE|唯美|娓娓道来",
+            "阿黛尔的生活|剧情|法国|2013|179|355000|8.4|悲剧/BE|写实|强冲突",
+            "安东尼娅家族|剧情|荷兰|1995|102|38000|8.7|喜剧/HE|唯美|娓娓道来",
+            "回归|剧情|西班牙|2006|121|145000|8.1|喜剧/HE|风格化|强冲突",
+            "关于我母亲的一切|剧情|西班牙|1999|101|215000|8.6|开放式|风格化|强冲突",
+            "芭贝特的盛宴|剧情|丹麦|1987|102|65000|8.4|喜剧/HE|唯美|娓娓道来",
+            "房间|剧情|爱尔兰|2015|118|425000|8.8|喜剧/HE|写实|强冲突",
+            "狗镇|惊悚|丹麦|2003|178|258000|8.4|悲剧/BE|风格化|强冲突",
+            "黑暗中的舞者|剧情|丹麦|2000|140|155000|8.2|悲剧/BE|风格化|强冲突",
+            "伴娘|喜剧|美国|2011|125|115000|6.8|喜剧/HE|风格化|强冲突",
+            "摘金奇缘|喜剧|美国|2018|120|165000|6.2|喜剧/HE|唯美|强冲突",
+            "NANA|剧情|日本|2005|113|285000|7.9|开放式|风格化|强冲突",
+            "下妻物语|喜剧|日本|2004|102|265000|8.3|喜剧/HE|风格化|强冲突",
+            "松子被嫌弃的一生|剧情|日本|2006|130|785000|8.9|悲剧/BE|风格化|强冲突",
+            "末代皇帝|传记|英国|1987|163|850000|9.3|悲剧/BE|唯美|强冲突",
+            "秋菊打官司|剧情|中国大陆|1992|100|254000|8.1|开放式|写实|强冲突",
+            "大红灯笼高高挂|剧情|中国大陆|1991|125|525000|8.7|悲剧/BE|唯美|强冲突",
+            "红高粱|剧情|中国大陆|1988|91|385000|8.5|悲剧/BE|唯美|强冲突",
+            "香魂女|剧情|中国大陆|1993|105|45000|8.3|悲剧/BE|写实|强冲突"
+        ];
+
+        // 核心解析器：将确切数据转换为页面显示文本，并自动归类到相应的筛选项中
+        const parseMovieData = (line) => {
+            const [title, genre, exactCountry, exactYearStr, exactDurationStr, exactRatersStr, exactRatingStr, ending, style, conflict] = line.split('|');
+            
+            const exactYear = parseInt(exactYearStr);
+            const exactDuration = parseInt(exactDurationStr);
+            const exactRaters = parseInt(exactRatersStr);
+            const exactRating = parseFloat(exactRatingStr);
+
+            // 1. 动态归类：地区
+            let region = '其他';
+            if (['中国大陆', '中国香港', '中国台湾'].includes(exactCountry)) region = '华语';
+            else if (['美国', '英国', '法国', '意大利', '瑞典', '新西兰', '比利时', '罗马尼亚', '挪威', '荷兰', '西班牙', '丹麦', '爱尔兰'].includes(exactCountry)) region = '欧美';
+            else if (['日本', '韩国'].includes(exactCountry)) region = '日韩';
+
+            // 2. 动态归类：年代
+            let decade = '';
+            if (exactYear < 2000) decade = '1990年代及以前';
+            else if (exactYear < 2010) decade = '2000年代';
+            else if (exactYear < 2020) decade = '2010年代';
+            else decade = '2020年代';
+
+            // 3. 动态归类：时长
+            let durationCategory = '';
+            if (exactDuration < 90) durationCategory = '90分钟内';
+            else if (exactDuration <= 120) durationCategory = '90-120分钟';
+            else durationCategory = '120分钟以上';
+
+            // 4. 动态归类：受众 (设定评价人数 >= 20万 算大众)
+            let popularity = exactRaters >= 200000 ? '大众' : '小众';
+
+            // 5. 动态归类：评分区间
+            let ratingCategory = '';
+            if (exactRating >= 9.0) ratingCategory = '9分以上';
+            else if (exactRating >= 8.0) ratingCategory = '8-9分';
+            else ratingCategory = '7-8分';
+
+            // 格式化展示的评价人数（如：85.2万）
+            const displayRaters = exactRaters > 10000 ? (exactRaters / 10000).toFixed(1) + '万' : exactRaters;
+
+            return {
+                // 用于直接展示的精确数据
+                title, genre, exactCountry, exactYear, exactDuration, exactRating: exactRating.toFixed(1), displayRaters, ending, style, conflict,
+                // 用于被算法过滤的类别标签
+                region, decade, duration: durationCategory, popularity, rating: ratingCategory
+            };
+        };
+
+        const moviesMap = new Map();
+        rawMoviesDetailed.forEach(line => {
+            const parsedMovie = parseMovieData(line);
+            if(!moviesMap.has(parsedMovie.title)) {
+                moviesMap.set(parsedMovie.title, parsedMovie);
+            }
+        });
+        const movies = Array.from(moviesMap.values());
+
+        // 筛选器配置 schema (保持原有的高级类别区间不变)
+        const filterSchema = [
+            { key: 'genre', label: '电影类型', options: ['剧情', '喜剧', '科幻', '惊悚', '传记'] },
+            { key: 'region', label: '制片地区', options: ['华语', '欧美', '日韩', '其他'] },
+            { key: 'decade', label: '电影年代', options: ['1990年代及以前', '2000年代', '2010年代', '2020年代'] },
+            { key: 'duration', label: '电影时长', options: ['90分钟内', '90-120分钟', '120分钟以上'] },
+            { key: 'popularity', label: '受众倾向 (基于评价数)', options: ['大众', '小众'] },
+            { key: 'rating', label: '豆瓣评分', options: ['7-8分', '8-9分', '9分以上'] },
+            { key: 'ending', label: '结局设定', options: ['喜剧/HE', '悲剧/BE', '开放式'] },
+            { key: 'style', label: '视觉风格', options: ['写实', '风格化', '唯美', '黑暗'] },
+            { key: 'conflict', label: '戏剧冲突', options: ['强冲突', '娓娓道来'] }
+        ];
+
+        createApp({
+            setup() {
+                const isMobileFilterOpen = ref(false);
+                const searchQuery = ref(''); // 新增：搜索状态
+
+                // 初始化选中状态
+                const activeFilters = ref({});
+                filterSchema.forEach(cat => {
+                    activeFilters.value[cat.key] = [];
+                });
+
+                // 切换筛选标签
+                const toggleFilter = (categoryKey, option) => {
+                    const currentSelection = activeFilters.value[categoryKey];
+                    const index = currentSelection.indexOf(option);
+                    if (index === -1) {
+                        currentSelection.push(option);
+                    } else {
+                        currentSelection.splice(index, 1);
+                    }
+                };
+
+                // 清空所有筛选
+                const clearFilters = () => {
+                    searchQuery.value = ''; // 点击重置时同时清空搜索框
+                    Object.keys(activeFilters.value).forEach(key => {
+                        activeFilters.value[key] = [];
+                    });
+                };
+
+                // 计算经过筛选后的电影列表
+                const filteredMovies = computed(() => {
+                    return movies.filter(movie => {
+                        // 1. 模糊搜索匹配（不区分大小写）
+                        if (searchQuery.value) {
+                            const query = searchQuery.value.toLowerCase();
+                            if (!movie.title.toLowerCase().includes(query)) {
+                                return false;
+                            }
+                        }
+
+                        // 2. 多维度标签筛选
+                        return Object.keys(activeFilters.value).every(key => {
+                            const selectedOptions = activeFilters.value[key];
+                            if (selectedOptions.length === 0) return true;
+                            // 匹配后台生成的类别标签，而非前端显示的具体数字
+                            return selectedOptions.includes(movie[key]);
+                        });
+                    });
+                });
+
+                return {
+                    movies,
+                    filterSchema,
+                    activeFilters,
+                    searchQuery, // 新增：将搜索状态暴露给模板
+                    toggleFilter,
+                    clearFilters,
+                    filteredMovies,
+                    isMobileFilterOpen
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
